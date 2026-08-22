@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Project site served under https://<user>.github.io/cookers/
+  base: '/cookers/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
