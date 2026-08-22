@@ -17,7 +17,8 @@ interface StageViewProps {
  * timer docks. Prepare and Cook are the same component with different props.
  */
 export const StageView = ({ stage }: StageViewProps) => {
-  const { inventory, canPrepare, startPrepare, startCook } = useKitchen();
+  const { inventory, canPrepare, isRoundRunning, startPrepare, startCook } =
+    useKitchen();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [units, setUnits] = useState<number>(TIMER_OPTIONS[0]);
 
@@ -27,7 +28,7 @@ export const StageView = ({ stage }: StageViewProps) => {
     : inventory.map((food) => ({ id: food.id, name: food.name }));
 
   const slotBlocked = isPrepare && !canPrepare;
-  const canStart = selectedId !== null && !slotBlocked;
+  const canStart = selectedId !== null && !slotBlocked && isRoundRunning;
 
   const handleStart = () => {
     if (selectedId === null) return;
@@ -56,7 +57,12 @@ export const StageView = ({ stage }: StageViewProps) => {
 
       <div className="shrink-0 space-y-3">
         <TimerPicker value={units} onChange={setUnits} />
-        {slotBlocked && (
+        {!isRoundRunning && (
+          <p className="text-center text-sm text-gray-500">
+            Démarrez la journée pour cuisiner.
+          </p>
+        )}
+        {isRoundRunning && slotBlocked && (
           <p className="text-center text-sm text-amber-700">
             Table de préparation occupée — une seule à la fois.
           </p>

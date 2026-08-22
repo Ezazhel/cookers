@@ -1,13 +1,7 @@
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { useCountdown } from '@/features/kitchen/hooks/useCountdown';
-import { cn } from '@/lib/utils';
+import { cn, formatMMSS } from '@/lib/utils';
 import type { ActiveTimer } from '@/models/food';
-
-const formatTime = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-};
 
 interface TimerProps {
   timer: ActiveTimer;
@@ -17,7 +11,7 @@ interface TimerProps {
 }
 
 export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
-  const { markDone } = useKitchen();
+  const { markDone, isRoundRunning } = useKitchen();
   const remaining = useCountdown(timer, markDone);
   const done = timer.done || remaining <= 0;
   const progress =
@@ -42,14 +36,15 @@ export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
         <button
           type="button"
           onClick={() => onAction(timer.id)}
-          className="mt-1 min-h-9 w-full rounded-lg bg-green-600 px-2 text-xs font-bold text-white active:bg-green-700"
+          disabled={!isRoundRunning}
+          className="mt-1 min-h-9 w-full rounded-lg bg-green-600 px-2 text-xs font-bold text-white active:bg-green-700 disabled:bg-gray-300"
         >
           {actionLabel}
         </button>
       ) : (
         <>
           <p className="text-lg font-bold tabular-nums text-gray-900">
-            {formatTime(remaining)}
+            {formatMMSS(remaining)}
           </p>
           <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
             <div

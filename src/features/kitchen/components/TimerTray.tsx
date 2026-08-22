@@ -23,7 +23,7 @@ export const TimerTray = ({ stage }: TimerTrayProps) => {
   return (
     <div
       className={cn(
-        'pointer-events-none fixed top-2 z-20 flex max-h-[55vh] w-[42vw] max-w-56 flex-col gap-2 overflow-y-auto',
+        'pointer-events-none fixed top-[4.5rem] z-20 flex max-h-[55vh] w-[42vw] max-w-56 flex-col gap-2 overflow-y-auto',
         isPrepare ? 'left-2 items-start' : 'right-2 items-end',
       )}
     >

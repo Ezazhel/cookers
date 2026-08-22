@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { ActiveTimer } from '@/models/food';
+
+/** Minimal shape a countdown needs. `ActiveTimer` satisfies it structurally,
+ *  as does the round's main timer. */
+export interface CountdownTarget {
+  id: string;
+  endTime: number;
+  done: boolean;
+}
 
 const remainingSeconds = (endTime: number) =>
   Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
@@ -10,7 +17,7 @@ const remainingSeconds = (endTime: number) =>
  * `onComplete` once the timer reaches zero (unless already marked done).
  */
 export const useCountdown = (
-  timer: ActiveTimer,
+  timer: CountdownTarget,
   onComplete: (id: string) => void,
 ) => {
   const [remaining, setRemaining] = useState(() =>
