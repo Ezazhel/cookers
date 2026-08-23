@@ -6,7 +6,9 @@ export type RewardId =
   | 'viande-blanche-tendre'
   | 'legumes'
   | 'topping'
-  | 'accompagnement';
+  | 'accompagnement'
+  | 'poissons'
+  | 'sauce';
 
 export interface Reward {
   id: RewardId;
