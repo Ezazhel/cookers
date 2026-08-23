@@ -1,70 +1,123 @@
 import { useState } from 'react';
-import { TIMER_OPTIONS } from '@/config';
+import { findMonster, MONSTERS, recipeSeconds } from '@/data/monsters';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
-import { CATALOG } from '@/features/kitchen/data';
 import { cn } from '@/lib/utils';
 import type { Stage } from '@/models/food';
-import { FoodList, type FoodListItem } from './FoodList';
-import { TimerPicker } from './TimerPicker';
+import type { Monster, Recipe } from '@/models/monster';
+import { MonsterList } from './MonsterList';
+import { RecipeList } from './RecipeList';
 
 interface StageViewProps {
   stage: Stage;
 }
 
 /**
- * Reusable stage screen: food list + timer picker + start button. The `stage`
- * prop drives the food source (catalog vs inventory) and where the started
- * timer docks. Prepare and Cook are the same component with different props.
+ * Reusable stage screen: pick a monster, then one of its recipes, then start.
+ * The `stage` prop drives what is available (carcasses vs prepared dishes),
+ * which of the recipe's two durations applies, and where the timer docks.
  */
 export const StageView = ({ stage }: StageViewProps) => {
-  const { inventory, canPrepare, isRoundRunning, startPrepare, startCook } =
-    useKitchen();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [units, setUnits] = useState<number>(TIMER_OPTIONS[0]);
+  const {
+    stageRecipes,
+    availableWorkers,
+    canPrepare,
+    canCook,
+    isRoundRunning,
+    startPrepare,
+    startCook,
+  } = useKitchen();
+  const [monsterId, setMonsterId] = useState<string | null>(null);
+  const [recipeId, setRecipeId] = useState<string | null>(null);
 
   const isPrepare = stage === 'prepare';
-  const items: FoodListItem[] = isPrepare
-    ? CATALOG.map((name) => ({ id: name, name }))
-    : inventory.map((food) => ({ id: food.id, name: food.name }));
+  const accent = isPrepare ? 'prepare' : 'cook';
+
+  // A recipe is startable here only at the matching progress state and only
+  // when no timer already holds it, so both grids come from one selector.
+  const countOfMonster = (monster: Monster) =>
+    stageRecipes(monster.id, stage).length;
+
+  const monsters = MONSTERS.filter((monster) => countOfMonster(monster) > 0);
+
+  const monster = monsterId ? findMonster(monsterId) : undefined;
+  const recipes: Recipe[] = monster ? stageRecipes(monster.id, stage) : [];
+
+  const recipe = recipes.find((item) => item.id === recipeId);
 
   const slotBlocked = isPrepare && !canPrepare;
-  const canStart = selectedId !== null && !slotBlocked && isRoundRunning;
+  const noWorker = isPrepare ? !canPrepare : !canCook;
+  const canStart = Boolean(recipe) && !slotBlocked && !noWorker && isRoundRunning;
+
+  const back = () => {
+    setMonsterId(null);
+    setRecipeId(null);
+  };
 
   const handleStart = () => {
-    if (selectedId === null) return;
-    if (isPrepare) {
-      // For the catalog, the item id is the food name.
-      startPrepare(selectedId, units);
-    } else {
-      const food = inventory.find((item) => item.id === selectedId);
-      if (!food) return;
-      startCook(food, units);
-    }
-    setSelectedId(null);
+    if (!monster || !recipe) return;
+    if (isPrepare) startPrepare(monster.id, recipe.id);
+    else startCook(monster.id, recipe.id);
+    back();
   };
+
+  const blockedMessage = () => {
+    if (!isRoundRunning) return 'Démarrez la journée pour cuisiner.';
+    if (availableWorkers.length === 0) return 'Aucun ouvrier disponible.';
+    if (!isPrepare) return null;
+    // Prepare is also capped by the number of tables the player owns.
+    if (!canPrepare) return 'Table de préparation occupée.';
+    return null;
+  };
+
+  const message = blockedMessage();
 
   return (
     <div className="flex h-full flex-col gap-4">
+      {monster && (
+        <button
+          type="button"
+          onClick={back}
+          className="flex min-h-11 shrink-0 items-center gap-1 self-start rounded-xl px-2 text-sm font-bold text-gray-600 active:bg-gray-100"
+        >
+          <span aria-hidden="true">‹</span> {monster.name}
+        </button>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <FoodList
-          type={stage}
-          items={items}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          emptyLabel={isPrepare ? undefined : 'Aucun plat prêt à cuisiner'}
-        />
+        {monster ? (
+          <RecipeList
+            recipes={recipes}
+            stage={stage}
+            selectedId={recipeId}
+            accent={accent}
+            onSelect={setRecipeId}
+            emptyLabel="Aucune recette disponible"
+          />
+        ) : (
+          <MonsterList
+            monsters={monsters}
+            countOf={countOfMonster}
+            selectedId={monsterId}
+            accent={accent}
+            onSelect={setMonsterId}
+            emptyLabel={
+              isPrepare
+                ? 'Aucune carcasse — envoyez un chasseur'
+                : 'Aucun plat prêt à cuisiner'
+            }
+          />
+        )}
       </div>
 
       <div className="shrink-0 space-y-3">
-        <TimerPicker value={units} onChange={setUnits} />
-        {!isRoundRunning && (
-          <p className="text-center text-sm text-gray-500">
-            Démarrez la journée pour cuisiner.
-          </p>
-        )}
-        {isRoundRunning && slotBlocked && (
-          <p className="text-center text-sm text-amber-700">
-            Table de préparation occupée — une seule à la fois.
+        {message && (
+          <p
+            className={cn(
+              'text-center text-sm',
+              isRoundRunning ? 'text-amber-700' : 'text-gray-500',
+            )}
+          >
+            {message}
           </p>
         )}
         <button
@@ -80,7 +133,9 @@ export const StageView = ({ stage }: StageViewProps) => {
               : 'cursor-not-allowed bg-gray-300',
           )}
         >
-          Démarrer ({units})
+          {recipe
+            ? `${isPrepare ? 'Préparer' : 'Cuisiner'} — ${recipe.name} (${recipeSeconds(recipe, stage)} s)`
+            : `${isPrepare ? 'Préparer' : 'Cuisiner'}`}
         </button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { findMonster, findRecipe } from '@/data/monsters';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { useCountdown } from '@/features/kitchen/hooks/useCountdown';
 import { cn, formatMMSS } from '@/lib/utils';
@@ -11,8 +12,10 @@ interface TimerProps {
 }
 
 export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
-  const { markDone, isRoundRunning } = useKitchen();
+  const { markDone, isRoundRunning, playerName } = useKitchen();
   const remaining = useCountdown(timer, markDone);
+  const recipe = findRecipe(timer.monsterId, timer.recipeId);
+  const monster = findMonster(timer.monsterId);
   const done = timer.done || remaining <= 0;
   const progress =
     timer.duration > 0 ? (timer.duration - remaining) / timer.duration : 1;
@@ -30,7 +33,10 @@ export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
       )}
     >
       <p className="truncate text-xs font-semibold text-gray-700">
-        {timer.foodName}
+        {recipe?.name ?? '—'}
+      </p>
+      <p className="truncate text-[0.625rem] text-gray-500">
+        {monster?.name} · {playerName(timer.workerId)}
       </p>
       {done ? (
         <button

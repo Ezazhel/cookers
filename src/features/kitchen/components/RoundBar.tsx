@@ -8,7 +8,8 @@ interface RoundBarProps {
 
 /** Full-width top bar: settings gear, the main "day" countdown, and start. */
 export const RoundBar = ({ onOpenSettings }: RoundBarProps) => {
-  const { round, isRoundRunning, startRound, endRound } = useKitchen();
+  const { round, settings, players, availableWorkers, isRoundRunning, startRound, endRound } =
+    useKitchen();
   const remaining = useCountdown(
     { id: 'round', endTime: round.endTime ?? 0, done: !isRoundRunning },
     endRound,
@@ -43,14 +44,16 @@ export const RoundBar = ({ onOpenSettings }: RoundBarProps) => {
               Journée
             </span>
             <span className="text-xl font-black text-gray-900">
-              {round.durationMinutes} min
+              {settings.roundMinutes} min
             </span>
           </>
         )}
       </div>
 
       {isRoundRunning ? (
-        <div className="h-11 w-11" />
+        <span className="min-w-11 rounded-full bg-gray-100 px-2 py-1 text-center text-xs font-bold tabular-nums text-gray-700">
+          {availableWorkers.length}/{players.length} dispo
+        </span>
       ) : (
         <button
           type="button"

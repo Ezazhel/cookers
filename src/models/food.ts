@@ -1,34 +1,28 @@
-/** A food's stage in the pipeline: raw ingredient to prepare, or a prepared
- *  item ready to cook. The value flips `prepare` -> `cook` once registered. */
+import type { RecipeState } from './monster';
+
 export type Stage = 'prepare' | 'cook';
 
 /**
- * A food item. `type` tracks where it sits in the pipeline:
- * - `prepare`: a raw ingredient from the catalog, waiting to be prepared.
- * - `cook`: a prepared item sitting in inventory, ready to be cooked.
- *
- * Note: fields are declared and assigned explicitly (not via constructor
- * parameter properties) because tsconfig has `erasableSyntaxOnly` enabled.
+ * A single monster carcass in stock. Monsters are unique — you can only ever
+ * hold one Orc — so `monsterId` is the identity. One carcass feeds every
+ * recipe of its monster, each tracked separately.
  */
-export class Food {
-  id: string;
-  name: string;
-  type: Stage;
-
-  constructor(id: string, name: string, type: Stage) {
-    this.id = id;
-    this.name = name;
-    this.type = type;
-  }
+export interface Carcass {
+  monsterId: string;
+  /** Progress per recipe id; every recipe of the monster has an entry. */
+  recipes: Record<string, RecipeState>;
 }
 
 /** A running (or finished) countdown shown in a corner tray. */
 export interface ActiveTimer {
   id: string;
-  foodName: string;
   /** Which tray the timer lives in: `prepare` = top-left, `cook` = top-right. */
   stage: Stage;
-  /** Total duration in real seconds. */
+  monsterId: string;
+  recipeId: string;
+  /** The player occupied by this task until it is dismissed. */
+  workerId: string;
+  /** Total duration in real seconds, taken from the recipe. */
   duration: number;
   /** Epoch ms when the countdown reaches zero. */
   endTime: number;

@@ -12,13 +12,13 @@ interface TimerTrayProps {
  * prepare timers dock top-left, cook timers top-right (stacked, scrollable).
  */
 export const TimerTray = ({ stage }: TimerTrayProps) => {
-  const { activeTimers, registerToInventory, removeTimer } = useKitchen();
+  const { activeTimers, finishPrepare, serveDish } = useKitchen();
   const timers = activeTimers.filter((timer) => timer.stage === stage);
   if (timers.length === 0) return null;
 
   const isPrepare = stage === 'prepare';
   const actionLabel = isPrepare ? 'Ranger en stock' : 'Servir';
-  const onAction = isPrepare ? registerToInventory : removeTimer;
+  const onAction = isPrepare ? finishPrepare : serveDish;
 
   return (
     <div
