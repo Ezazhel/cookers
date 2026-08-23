@@ -114,6 +114,34 @@ export const MONSTERS: readonly Monster[] = [
       },
     ],
   },
+  {
+    id: 'licorne',
+    name: 'Licorne',
+    recipes: [
+      {
+        id: 'licorne-steak',
+        name: 'Steak à la licorne',
+        reward: 'Viande rouge tendre',
+        prepareSeconds: 20,
+        cookSeconds: 10,
+      },
+      {
+        id: 'licorne-corne',
+        name: 'Corne parfaite',
+        reward: 'Topping',
+        prepareSeconds: 25,
+        // No cook step: served as soon as it's prepared.
+        cookSeconds: 0,
+      },
+      {
+        id: 'licorne-bourguicorne',
+        name: 'Bourguicorne',
+        reward: 'Viande rouge mijotée',
+        prepareSeconds: 15,
+        cookSeconds: 20,
+      },
+    ],
+  },
 ];
 
 export const findMonster = (monsterId: string): Monster | undefined =>

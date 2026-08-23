@@ -6,6 +6,7 @@ export interface Recipe {
   /** What the finished dish yields, in the boardgame's terms. */
   reward: string;
   prepareSeconds: number;
+  /** 0 means no cook step: the dish is served as soon as it's prepared. */
   cookSeconds: number;
 }
 
