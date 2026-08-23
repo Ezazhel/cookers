@@ -35,6 +35,7 @@ export const RecipeList = ({
           key={recipe.id}
           label={recipe.name}
           hint={`${recipeSeconds(recipe, stage)} s`}
+          rewards={[recipe.reward]}
           selected={recipe.id === selectedId}
           accent={accent}
           onSelect={() => onSelect(recipe.id)}

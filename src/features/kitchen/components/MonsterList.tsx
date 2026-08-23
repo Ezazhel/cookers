@@ -1,10 +1,12 @@
 import { CardGrid, SelectCard, type Accent } from '@/components/CardGrid';
-import type { Monster } from '@/models/monster';
+import type { Monster, RewardId } from '@/models/monster';
 
 interface MonsterListProps {
   monsters: readonly Monster[];
-  /** Count badge per monster: carcasses in prepare, ready dishes in cook. */
+  /** Count badge per monster: how many recipes are startable at this stage. */
   countOf: (monster: Monster) => number;
+  /** Distinct rewards those recipes can still yield. */
+  rewardsOf: (monster: Monster) => RewardId[];
   selectedId: string | null;
   accent: Accent;
   onSelect: (monsterId: string) => void;
@@ -14,6 +16,7 @@ interface MonsterListProps {
 export const MonsterList = ({
   monsters,
   countOf,
+  rewardsOf,
   selectedId,
   accent,
   onSelect,
@@ -36,6 +39,7 @@ export const MonsterList = ({
             key={monster.id}
             label={monster.name}
             badge={count}
+            rewards={rewardsOf(monster)}
             selected={monster.id === selectedId}
             disabled={count === 0}
             accent={accent}

@@ -1,3 +1,4 @@
+import { RewardBadge } from '@/components/RewardBadge';
 import { findMonster, findRecipe } from '@/data/monsters';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { useCountdown } from '@/features/kitchen/hooks/useCountdown';
@@ -12,7 +13,7 @@ interface TimerProps {
 }
 
 export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
-  const { markDone, isRoundRunning, playerName } = useKitchen();
+  const { markDone, isRoundRunning } = useKitchen();
   const remaining = useCountdown(timer, markDone);
   const recipe = findRecipe(timer.monsterId, timer.recipeId);
   const monster = findMonster(timer.monsterId);
@@ -35,8 +36,9 @@ export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
       <p className="truncate text-xs font-semibold text-gray-700">
         {recipe?.name ?? '—'}
       </p>
-      <p className="truncate text-[0.625rem] text-gray-500">
-        {monster?.name} · {playerName(timer.workerId)}
+      <p className="flex items-center gap-1 truncate text-[0.625rem] text-gray-500">
+        {recipe && <RewardBadge reward={recipe.reward} />}
+        <span className="truncate">{monster?.name}</span>
       </p>
       {done ? (
         <button

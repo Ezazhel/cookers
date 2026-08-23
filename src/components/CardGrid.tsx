@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { RewardBadge } from '@/components/RewardBadge';
 import { cn } from '@/lib/utils';
+import type { RewardId } from '@/models/monster';
 
 /** Accent colour of a card grid: matches the tab it belongs to. */
 export type Accent = 'prepare' | 'cook' | 'hunt';
@@ -27,6 +29,8 @@ interface SelectCardProps {
   hint?: string;
   /** Small corner count badge; hidden when undefined. */
   badge?: number;
+  /** Reward chips shown under the label: what this card can yield. */
+  rewards?: RewardId[];
   selected: boolean;
   disabled?: boolean;
   accent: Accent;
@@ -39,6 +43,7 @@ export const SelectCard = ({
   label,
   hint,
   badge,
+  rewards,
   selected,
   disabled = false,
   accent,
@@ -52,7 +57,7 @@ export const SelectCard = ({
       disabled={disabled}
       aria-pressed={multi ? selected : undefined}
       className={cn(
-        'relative flex aspect-square min-h-22 w-full flex-col items-center justify-center gap-1 rounded-xl border px-1.5 text-center transition',
+        'relative flex min-h-24 w-full flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-center transition',
         selected
           ? SELECTED[accent]
           : 'border-gray-200 bg-white text-gray-800 active:bg-gray-50',
@@ -62,6 +67,13 @@ export const SelectCard = ({
       <span className="line-clamp-3 text-xs leading-tight font-semibold">
         {label}
       </span>
+      {rewards && rewards.length > 0 && (
+        <span className="flex flex-wrap justify-center gap-0.5">
+          {rewards.map((reward) => (
+            <RewardBadge key={reward} reward={reward} />
+          ))}
+        </span>
+      )}
       {hint && (
         <span className="text-[0.625rem] leading-tight text-gray-500">
           {hint}

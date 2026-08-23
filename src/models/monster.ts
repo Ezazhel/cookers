@@ -1,10 +1,30 @@
+/** What a finished dish yields, in the boardgame's terms. */
+export type RewardId =
+  | 'viande-rouge-mijotee'
+  | 'viande-rouge-tendre'
+  | 'viande-blanche-mijotee'
+  | 'viande-blanche-tendre'
+  | 'legumes'
+  | 'topping'
+  | 'accompagnement';
+
+export interface Reward {
+  id: RewardId;
+  /** Full name, used in the filter chips and as the badge's title. */
+  label: string;
+  /** Short code shown on the cards, e.g. 'VR-T'. */
+  short: string;
+  /** Tailwind classes for the badge, written out in full so the scanner
+   *  picks them up. */
+  tone: string;
+}
+
 /** One dish a monster's carcass can be turned into. Each recipe owns both of
  *  its durations, so there is no global timer picker any more. */
 export interface Recipe {
   id: string;
   name: string;
-  /** What the finished dish yields, in the boardgame's terms. */
-  reward: string;
+  reward: RewardId;
   prepareSeconds: number;
   /** 0 means no cook step: the dish is served as soon as it's prepared. */
   cookSeconds: number;
