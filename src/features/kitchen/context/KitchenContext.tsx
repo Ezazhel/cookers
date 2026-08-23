@@ -235,14 +235,13 @@ const reducer = (state: GameState, action: GameAction): GameState => {
     case 'FINISH_PREPARE': {
       const timer = state.activeTimers.find((t) => t.id === action.id);
       if (!timer) return state;
+      const recipe = findRecipe(timer.monsterId, timer.recipeId);
+      // cookSeconds 0 means no cook step: skip straight to served instead of
+      // surfacing the recipe in Cuisiner.
+      const next = recipe?.cookSeconds === 0 ? 'cook' : 'prepare';
       return {
         ...state,
-        carcasses: withRecipeState(
-          state,
-          timer.monsterId,
-          timer.recipeId,
-          'prepare',
-        ),
+        carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, next),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
       };
     }
