@@ -48,6 +48,9 @@ interface GameState {
   activeTimers: ActiveTimer[];
   hunts: Hunt[];
   round: RoundState;
+  /** Which day the players are on. Starts at 1, +1 each time a new day is
+   *  started from the end-of-day screen. */
+  day: number;
   settings: GameSettings;
 }
 
@@ -58,6 +61,7 @@ type GameAction =
   | { type: 'MARK_DONE'; id: string }
   | { type: 'FINISH_PREPARE'; id: string }
   | { type: 'SERVE_DISH'; id: string }
+  | { type: 'CANCEL_TIMER'; id: string }
   | { type: 'START_HUNT'; workerId: string }
   | { type: 'HUNT_ARRIVED'; id: string }
   | { type: 'RECALL_HUNTER'; id: string }
@@ -145,6 +149,7 @@ const initialState: GameState = {
   activeTimers: [],
   hunts: [],
   round: { status: 'idle', endTime: null },
+  day: 1,
   settings: {
     roundMinutes: ROUND_DEFAULT_MINUTES,
     prepareSlots: PREPARE_SLOTS_DEFAULT,
@@ -159,6 +164,7 @@ const inRoundActions: GameAction['type'][] = [
   'START_TIMER',
   'FINISH_PREPARE',
   'SERVE_DISH',
+  'CANCEL_TIMER',
   'START_HUNT',
   'HUNT_ARRIVED',
   'RECALL_HUNTER',
@@ -261,6 +267,17 @@ const reducer = (state: GameState, action: GameAction): GameState => {
       };
     }
 
+    case 'CANCEL_TIMER': {
+      // Drops the timer without touching carcass state: START_TIMER never
+      // mutated it, so there is nothing to roll back. Removing it from
+      // activeTimers frees the worker (and the table, if it was a prepare
+      // timer) immediately.
+      return {
+        ...state,
+        activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
+      };
+    }
+
     case 'START_HUNT': {
       const worker = state.players.find((p) => p.id === action.workerId);
       if (!worker || busyWorkerIds(state).has(worker.id)) return state;
@@ -338,6 +355,8 @@ const reducer = (state: GameState, action: GameAction): GameState => {
 
     case 'START_ROUND': {
       // A new day: clear the board but keep the players and what they hunted.
+      // Only bump the day counter when this follows an ended day, not the
+      // very first "Démarrer" from idle.
       return {
         ...state,
         activeTimers: [],
@@ -347,6 +366,7 @@ const reducer = (state: GameState, action: GameAction): GameState => {
           endTime:
             Date.now() + state.settings.roundMinutes * SECONDS_PER_MINUTE * 1000,
         },
+        day: state.round.status === 'ended' ? state.day + 1 : state.day,
       };
     }
 
@@ -413,6 +433,7 @@ interface KitchenContextValue {
   activeTimers: ActiveTimer[];
   hunts: Hunt[];
   round: RoundState;
+  day: number;
   settings: GameSettings;
   /** Whether the round is currently running (the board is unlocked). */
   isRoundRunning: boolean;
@@ -438,6 +459,8 @@ interface KitchenContextValue {
   finishPrepare: (id: string) => void;
   /** Serves a finished cook timer, using up the carcass if it was the last. */
   serveDish: (id: string) => void;
+  /** Cancels an in-progress timer, freeing its worker (and table) again. */
+  cancelTimer: (id: string) => void;
   startHunt: (workerId: string) => void;
   huntArrived: (id: string) => void;
   recallHunter: (id: string) => void;
@@ -483,6 +506,10 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
 
   const serveDish = useCallback((id: string) => {
     dispatch({ type: 'SERVE_DISH', id });
+  }, []);
+
+  const cancelTimer = useCallback((id: string) => {
+    dispatch({ type: 'CANCEL_TIMER', id });
   }, []);
 
   const startHunt = useCallback((workerId: string) => {
@@ -535,6 +562,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       activeTimers: state.activeTimers,
       hunts: state.hunts,
       round: state.round,
+      day: state.day,
       settings: state.settings,
       isRoundRunning: state.round.status === 'running',
       availableWorkers: available,
@@ -555,6 +583,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       markDone,
       finishPrepare,
       serveDish,
+      cancelTimer,
       startHunt,
       huntArrived,
       recallHunter,
@@ -577,6 +606,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
     markDone,
     finishPrepare,
     serveDish,
+    cancelTimer,
     startHunt,
     huntArrived,
     recallHunter,

@@ -10,9 +10,16 @@ interface TimerProps {
   /** Label of the button shown once the countdown finishes. */
   actionLabel: string;
   onAction: (id: string) => void;
+  /** Opens the (shared) cancel-confirmation dialog for this timer. */
+  onRequestCancel: (id: string) => void;
 }
 
-export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
+export const Timer = ({
+  timer,
+  actionLabel,
+  onAction,
+  onRequestCancel,
+}: TimerProps) => {
   const { markDone, isRoundRunning } = useKitchen();
   const remaining = useCountdown(timer, markDone);
   const recipe = findRecipe(timer.monsterId, timer.recipeId);
@@ -25,7 +32,7 @@ export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
   return (
     <div
       className={cn(
-        'pointer-events-auto rounded-xl border bg-white/95 p-2 shadow-md backdrop-blur',
+        'relative pointer-events-auto rounded-xl border bg-white/95 p-2 shadow-md backdrop-blur',
         done
           ? 'border-green-500'
           : isPrepare
@@ -33,6 +40,17 @@ export const Timer = ({ timer, actionLabel, onAction }: TimerProps) => {
             : 'border-rose-300',
       )}
     >
+      {isRoundRunning && (
+        <button
+          type="button"
+          aria-label="Annuler"
+          onClick={() => onRequestCancel(timer.id)}
+          className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-bold text-gray-500 shadow active:bg-gray-50"
+        >
+          ✕
+        </button>
+      )}
+
       <p className="truncate text-xs font-semibold text-gray-700">
         {recipe?.name ?? '—'}
       </p>
