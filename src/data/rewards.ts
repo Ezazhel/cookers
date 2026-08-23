@@ -46,6 +46,18 @@ export const REWARDS: readonly Reward[] = [
     short: 'ACC',
     tone: 'bg-slate-500 text-white',
   },
+  {
+    id: 'poissons',
+    label: 'Poissons',
+    short: 'POI',
+    tone: 'bg-blue-500 text-white',
+  },
+  {
+    id: 'sauce',
+    label: 'Sauce',
+    short: 'SAU',
+    tone: 'bg-orange-500 text-white',
+  },
 ];
 
 export const findReward = (id: RewardId): Reward | undefined =>
