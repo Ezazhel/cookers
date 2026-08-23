@@ -122,14 +122,14 @@ export const MONSTERS: readonly Monster[] = [
       {
         id: 'licorne-steak',
         name: 'Steak à la licorne',
-        reward: 'Viande rouge tendre',
+        reward: 'viande-rouge-tendre',
         prepareSeconds: 20,
         cookSeconds: 10,
       },
       {
         id: 'licorne-corne',
         name: 'Corne parfaite',
-        reward: 'Topping',
+        reward: 'topping',
         prepareSeconds: 25,
         // No cook step: served as soon as it's prepared.
         cookSeconds: 0,
@@ -137,7 +137,7 @@ export const MONSTERS: readonly Monster[] = [
       {
         id: 'licorne-bourguicorne',
         name: 'Bourguicorne',
-        reward: 'Viande rouge mijotée',
+        reward: 'viande-rouge-mijotee',
         prepareSeconds: 15,
         cookSeconds: 20,
       },
