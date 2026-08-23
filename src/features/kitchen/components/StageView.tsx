@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { findMonster, MONSTERS, recipeSeconds } from '@/data/monsters';
+import { sortRewards } from '@/data/rewards';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { cn } from '@/lib/utils';
 import type { Stage } from '@/models/food';
-import type { Monster, Recipe } from '@/models/monster';
+import type { Monster, Recipe, RewardId } from '@/models/monster';
 import { MonsterList } from './MonsterList';
 import { RecipeList } from './RecipeList';
+import { RewardFilter } from './RewardFilter';
 
 interface StageViewProps {
   stage: Stage;
@@ -28,19 +30,33 @@ export const StageView = ({ stage }: StageViewProps) => {
   } = useKitchen();
   const [monsterId, setMonsterId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
+  const [rewardId, setRewardId] = useState<RewardId | null>(null);
 
   const isPrepare = stage === 'prepare';
   const accent = isPrepare ? 'prepare' : 'cook';
 
   // A recipe is startable here only at the matching progress state and only
-  // when no timer already holds it, so both grids come from one selector.
-  const countOfMonster = (monster: Monster) =>
-    stageRecipes(monster.id, stage).length;
+  // when no timer already holds it, so both grids come from one selector,
+  // narrowed by the reward filter.
+  const recipesFor = (monster: Monster) => {
+    const startable = stageRecipes(monster.id, stage);
+    return rewardId
+      ? startable.filter((item) => item.reward === rewardId)
+      : startable;
+  };
 
-  const monsters = MONSTERS.filter((monster) => countOfMonster(monster) > 0);
+  const monsters = MONSTERS.filter((monster) => recipesFor(monster).length > 0);
+
+  // The chips offer only rewards that exist at this stage, unfiltered, so
+  // clearing the filter is always one tap away.
+  const offeredRewards = sortRewards(
+    MONSTERS.flatMap((monster) =>
+      stageRecipes(monster.id, stage).map((item) => item.reward),
+    ),
+  );
 
   const monster = monsterId ? findMonster(monsterId) : undefined;
-  const recipes: Recipe[] = monster ? stageRecipes(monster.id, stage) : [];
+  const recipes: Recipe[] = monster ? recipesFor(monster) : [];
 
   const recipe = recipes.find((item) => item.id === recipeId);
 
@@ -83,6 +99,14 @@ export const StageView = ({ stage }: StageViewProps) => {
         </button>
       )}
 
+      {offeredRewards.length > 0 && (
+        <RewardFilter
+          rewards={offeredRewards}
+          value={rewardId}
+          onChange={setRewardId}
+        />
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         {monster ? (
           <RecipeList
@@ -96,7 +120,10 @@ export const StageView = ({ stage }: StageViewProps) => {
         ) : (
           <MonsterList
             monsters={monsters}
-            countOf={countOfMonster}
+            countOf={(item) => recipesFor(item).length}
+            rewardsOf={(item) =>
+              sortRewards(recipesFor(item).map((entry) => entry.reward))
+            }
             selectedId={monsterId}
             accent={accent}
             onSelect={setMonsterId}
