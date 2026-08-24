@@ -63,6 +63,7 @@ type GameAction =
   | { type: 'SERVE_DISH'; id: string }
   | { type: 'CANCEL_TIMER'; id: string }
   | { type: 'START_HUNT'; workerId: string }
+  | { type: 'CANCEL_HUNT'; id: string }
   | { type: 'HUNT_ARRIVED'; id: string }
   | { type: 'RECALL_HUNTER'; id: string }
   | { type: 'HUNT_RETURNED'; id: string }
@@ -166,6 +167,7 @@ const inRoundActions: GameAction['type'][] = [
   'SERVE_DISH',
   'CANCEL_TIMER',
   'START_HUNT',
+  'CANCEL_HUNT',
   'HUNT_ARRIVED',
   'RECALL_HUNTER',
   'HUNT_RETURNED',
@@ -290,6 +292,18 @@ const reducer = (state: GameState, action: GameAction): GameState => {
         endTime: Date.now() + duration * 1000,
       };
       return { ...state, hunts: [...state.hunts, hunt] };
+    }
+
+    case 'CANCEL_HUNT': {
+      // Undoes a misclick: only while the hunter is still travelling out,
+      // before they've actually reached the dungeon. Once `hunting`, coming
+      // back is the in-fiction `RECALL_HUNTER` journey instead.
+      return {
+        ...state,
+        hunts: state.hunts.filter(
+          (hunt) => !(hunt.id === action.id && hunt.status === 'travelling'),
+        ),
+      };
     }
 
     case 'HUNT_ARRIVED': {
@@ -462,6 +476,8 @@ interface KitchenContextValue {
   /** Cancels an in-progress timer, freeing its worker (and table) again. */
   cancelTimer: (id: string) => void;
   startHunt: (workerId: string) => void;
+  /** Cancels a hunt while its worker is still travelling out (misclick undo). */
+  cancelHunt: (id: string) => void;
   huntArrived: (id: string) => void;
   recallHunter: (id: string) => void;
   huntReturned: (id: string) => void;
@@ -514,6 +530,10 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
 
   const startHunt = useCallback((workerId: string) => {
     dispatch({ type: 'START_HUNT', workerId });
+  }, []);
+
+  const cancelHunt = useCallback((id: string) => {
+    dispatch({ type: 'CANCEL_HUNT', id });
   }, []);
 
   const huntArrived = useCallback((id: string) => {
@@ -585,6 +605,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       serveDish,
       cancelTimer,
       startHunt,
+      cancelHunt,
       huntArrived,
       recallHunter,
       huntReturned,
@@ -608,6 +629,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
     serveDish,
     cancelTimer,
     startHunt,
+    cancelHunt,
     huntArrived,
     recallHunter,
     huntReturned,
