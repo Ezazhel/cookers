@@ -17,8 +17,14 @@ const STATUS_LABEL: Record<Hunt['status'], string> = {
 
 /** One hunter's card: a countdown for the travel legs, an action otherwise. */
 export const HuntCard = ({ hunt, onRegister }: HuntCardProps) => {
-  const { playerName, huntArrived, huntReturned, recallHunter, isRoundRunning } =
-    useKitchen();
+  const {
+    playerName,
+    huntArrived,
+    huntReturned,
+    recallHunter,
+    cancelHunt,
+    isRoundRunning,
+  } = useKitchen();
 
   const travelling = hunt.status === 'travelling';
   const returning = hunt.status === 'returning';
@@ -66,6 +72,17 @@ export const HuntCard = ({ hunt, onRegister }: HuntCardProps) => {
             />
           </div>
         </>
+      )}
+
+      {travelling && (
+        <button
+          type="button"
+          onClick={() => cancelHunt(hunt.id)}
+          disabled={!isRoundRunning}
+          className="mt-2 min-h-11 w-full rounded-xl text-sm font-bold text-gray-500 active:bg-gray-50 disabled:text-gray-300"
+        >
+          Annuler
+        </button>
       )}
 
       {hunt.status === 'hunting' && (

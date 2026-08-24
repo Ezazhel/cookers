@@ -53,10 +53,16 @@ export const REWARDS: readonly Reward[] = [
     tone: 'bg-blue-500 text-white',
   },
   {
-    id: 'sauce',
-    label: 'Sauce',
-    short: 'SAU',
-    tone: 'bg-orange-500 text-white',
+    id: 'sauce-corsee',
+    label: 'Sauce corsée',
+    short: 'SA-CO',
+    tone: 'bg-orange-600 text-white',
+  },
+  {
+    id: 'sauce-claire',
+    label: 'Sauce claire',
+    short: 'SA-CL',
+    tone: 'bg-orange-400 text-orange-950',
   },
 ];
 

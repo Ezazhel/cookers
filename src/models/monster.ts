@@ -8,7 +8,8 @@ export type RewardId =
   | 'topping'
   | 'accompagnement'
   | 'poissons'
-  | 'sauce';
+  | 'sauce-claire'
+  | 'sauce-corsee';
 
 export interface Reward {
   id: RewardId;
