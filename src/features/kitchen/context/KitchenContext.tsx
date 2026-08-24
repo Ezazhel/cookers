@@ -20,6 +20,7 @@ import { findMonster, findRecipe, recipeSeconds } from '@/data/monsters';
 import type { ActiveTimer, Carcass, Stage } from '@/models/food';
 import type { Recipe } from '@/models/monster';
 import type { Hunt, Player } from '@/models/player';
+import { emptyRoundStats, type RoundStats } from '@/models/stats';
 
 /** Which screen the app is on: title, game setup, or the board itself. */
 export type AppPhase = 'home' | 'setup' | 'playing';
@@ -52,6 +53,9 @@ interface GameState {
    *  started from the end-of-day screen. */
   day: number;
   settings: GameSettings;
+  /** What happened this round, for the end-of-day recap. Cleared when the
+   *  next round starts. */
+  stats: RoundStats;
 }
 
 type GameAction =
@@ -61,6 +65,7 @@ type GameAction =
   | { type: 'MARK_DONE'; id: string }
   | { type: 'FINISH_PREPARE'; id: string }
   | { type: 'SERVE_DISH'; id: string }
+  | { type: 'BURN_DISH'; id: string }
   | { type: 'CANCEL_TIMER'; id: string }
   | { type: 'START_HUNT'; workerId: string }
   | { type: 'CANCEL_HUNT'; id: string }
@@ -151,6 +156,7 @@ const initialState: GameState = {
   hunts: [],
   round: { status: 'idle', endTime: null },
   day: 1,
+  stats: emptyRoundStats(),
   settings: {
     roundMinutes: ROUND_DEFAULT_MINUTES,
     prepareSlots: PREPARE_SLOTS_DEFAULT,
@@ -165,6 +171,7 @@ const inRoundActions: GameAction['type'][] = [
   'START_TIMER',
   'FINISH_PREPARE',
   'SERVE_DISH',
+  'BURN_DISH',
   'CANCEL_TIMER',
   'START_HUNT',
   'CANCEL_HUNT',
@@ -247,10 +254,33 @@ const reducer = (state: GameState, action: GameAction): GameState => {
       // cookSeconds 0 means no cook step: skip straight to served instead of
       // surfacing the recipe in Cuisiner.
       const next = recipe?.cookSeconds === 0 ? 'cook' : 'prepare';
+      const prepared = {
+        monsterId: timer.monsterId,
+        recipeId: timer.recipeId,
+        seconds: timer.duration,
+      };
       return {
         ...state,
         carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, next),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
+        stats: {
+          ...state.stats,
+          prepared: [...state.stats.prepared, prepared],
+          // No cook step: this dish is served the instant it's prepared, so
+          // it must also count in the "cuisiné" recap or it would never
+          // appear there.
+          cooked:
+            next === 'cook'
+              ? [
+                  ...state.stats.cooked,
+                  {
+                    monsterId: timer.monsterId,
+                    recipeId: timer.recipeId,
+                    burnt: false,
+                  },
+                ]
+              : state.stats.cooked,
+        },
       };
     }
 
@@ -266,6 +296,37 @@ const reducer = (state: GameState, action: GameAction): GameState => {
           'cook',
         ),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
+        stats: {
+          ...state.stats,
+          cooked: [
+            ...state.stats.cooked,
+            { monsterId: timer.monsterId, recipeId: timer.recipeId, burnt: false },
+          ],
+        },
+      };
+    }
+
+    case 'BURN_DISH': {
+      // A cooked dish left unserved past the burn window: same terminal
+      // transition as SERVE_DISH, just logged as burnt instead of served.
+      const timer = state.activeTimers.find((t) => t.id === action.id);
+      if (!timer) return state;
+      return {
+        ...state,
+        carcasses: withRecipeState(
+          state,
+          timer.monsterId,
+          timer.recipeId,
+          'cook',
+        ),
+        activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
+        stats: {
+          ...state.stats,
+          cooked: [
+            ...state.stats.cooked,
+            { monsterId: timer.monsterId, recipeId: timer.recipeId, burnt: true },
+          ],
+        },
       };
     }
 
@@ -290,6 +351,8 @@ const reducer = (state: GameState, action: GameAction): GameState => {
         status: 'travelling',
         duration,
         endTime: Date.now() + duration * 1000,
+        huntingSince: null,
+        dungeonSeconds: null,
       };
       return { ...state, hunts: [...state.hunts, hunt] };
     }
@@ -311,7 +374,12 @@ const reducer = (state: GameState, action: GameAction): GameState => {
         ...state,
         hunts: state.hunts.map((hunt) =>
           hunt.id === action.id && hunt.status === 'travelling'
-            ? { ...hunt, status: 'hunting', endTime: null }
+            ? {
+                ...hunt,
+                status: 'hunting',
+                endTime: null,
+                huntingSince: Date.now(),
+              }
             : hunt,
         ),
       };
@@ -328,6 +396,9 @@ const reducer = (state: GameState, action: GameAction): GameState => {
                 status: 'returning',
                 duration,
                 endTime: Date.now() + duration * 1000,
+                dungeonSeconds: hunt.huntingSince
+                  ? Math.round((Date.now() - hunt.huntingSince) / 1000)
+                  : 0,
               }
             : hunt,
         ),
@@ -364,6 +435,17 @@ const reducer = (state: GameState, action: GameAction): GameState => {
         ...state,
         carcasses: [...state.carcasses, ...caught],
         hunts: state.hunts.filter((h) => h.id !== action.huntId),
+        stats: {
+          ...state.stats,
+          hunts: [
+            ...state.stats.hunts,
+            {
+              id: nextId('huntlog'),
+              monsterIds: caught.map((carcass) => carcass.monsterId),
+              dungeonSeconds: hunt.dungeonSeconds ?? 0,
+            },
+          ],
+        },
       };
     }
 
@@ -375,6 +457,7 @@ const reducer = (state: GameState, action: GameAction): GameState => {
         ...state,
         activeTimers: [],
         hunts: [],
+        stats: emptyRoundStats(),
         round: {
           status: 'running',
           endTime:
@@ -449,6 +532,7 @@ interface KitchenContextValue {
   round: RoundState;
   day: number;
   settings: GameSettings;
+  stats: RoundStats;
   /** Whether the round is currently running (the board is unlocked). */
   isRoundRunning: boolean;
   /** Players not tied up by a timer or a hunt. */
@@ -473,6 +557,9 @@ interface KitchenContextValue {
   finishPrepare: (id: string) => void;
   /** Serves a finished cook timer, using up the carcass if it was the last. */
   serveDish: (id: string) => void;
+  /** Burns an unserved cook timer past its serve window: same terminal
+   *  effect as serveDish, logged separately for the recap. */
+  burnDish: (id: string) => void;
   /** Cancels an in-progress timer, freeing its worker (and table) again. */
   cancelTimer: (id: string) => void;
   startHunt: (workerId: string) => void;
@@ -522,6 +609,10 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
 
   const serveDish = useCallback((id: string) => {
     dispatch({ type: 'SERVE_DISH', id });
+  }, []);
+
+  const burnDish = useCallback((id: string) => {
+    dispatch({ type: 'BURN_DISH', id });
   }, []);
 
   const cancelTimer = useCallback((id: string) => {
@@ -584,6 +675,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       round: state.round,
       day: state.day,
       settings: state.settings,
+      stats: state.stats,
       isRoundRunning: state.round.status === 'running',
       availableWorkers: available,
       canPrepare:
@@ -603,6 +695,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       markDone,
       finishPrepare,
       serveDish,
+      burnDish,
       cancelTimer,
       startHunt,
       cancelHunt,
@@ -627,6 +720,7 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
     markDone,
     finishPrepare,
     serveDish,
+    burnDish,
     cancelTimer,
     startHunt,
     cancelHunt,

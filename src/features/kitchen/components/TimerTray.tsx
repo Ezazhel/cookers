@@ -4,7 +4,8 @@ import { findMonster, findRecipe } from '@/data/monsters';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { cn } from '@/lib/utils';
 import type { Stage } from '@/models/food';
-import { Timer } from './Timer';
+import { CookTimer } from './CookTimer';
+import { PrepareTimer } from './PrepareTimer';
 
 interface TimerTrayProps {
   stage: Stage;
@@ -15,7 +16,7 @@ interface TimerTrayProps {
  * prepare timers dock top-left, cook timers top-right (stacked, scrollable).
  */
 export const TimerTray = ({ stage }: TimerTrayProps) => {
-  const { activeTimers, finishPrepare, serveDish, cancelTimer } = useKitchen();
+  const { activeTimers, cancelTimer } = useKitchen();
   const [cancelId, setCancelId] = useState<string | null>(null);
   const timers = activeTimers.filter((timer) => timer.stage === stage);
 
@@ -27,8 +28,6 @@ export const TimerTray = ({ stage }: TimerTrayProps) => {
   if (timers.length === 0 && !cancelTarget) return null;
 
   const isPrepare = stage === 'prepare';
-  const actionLabel = isPrepare ? 'Ranger en stock' : 'Servir';
-  const onAction = isPrepare ? finishPrepare : serveDish;
 
   return (
     <>
@@ -41,12 +40,11 @@ export const TimerTray = ({ stage }: TimerTrayProps) => {
         >
           {timers.map((timer) => (
             <div key={timer.id} className="w-full">
-              <Timer
-                timer={timer}
-                actionLabel={actionLabel}
-                onAction={onAction}
-                onRequestCancel={setCancelId}
-              />
+              {isPrepare ? (
+                <PrepareTimer timer={timer} onRequestCancel={setCancelId} />
+              ) : (
+                <CookTimer timer={timer} onRequestCancel={setCancelId} />
+              )}
             </div>
           ))}
         </div>

@@ -22,6 +22,9 @@ export const HUNT_RETURN_SECONDS_DEFAULT = 30;
 
 export const HUNT_SECONDS_MIN = 1;
 
+/** Seconds a cooked dish has to be served before it burns. */
+export const COOK_BURN_SECONDS = 10;
+
 /** Player-count bounds for the game setup stepper. */
 export const PLAYERS_MIN = 1;
 export const PLAYERS_MAX = 6;

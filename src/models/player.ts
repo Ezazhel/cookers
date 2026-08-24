@@ -17,4 +17,9 @@ export interface Hunt {
   endTime: number | null;
   /** Total seconds of the current leg, for the progress bar. */
   duration: number;
+  /** Epoch ms when this hunt entered `hunting`; null until then. */
+  huntingSince: number | null;
+  /** Seconds actually spent at `hunting`, frozen at RECALL_HUNTER for the
+   *  end-of-day recap. */
+  dungeonSeconds: number | null;
 }
