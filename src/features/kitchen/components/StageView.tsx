@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { findMonster, MONSTERS, recipeSeconds } from '@/data/monsters';
+import { findMonster, MONSTERS } from '@/data/monsters';
 import { sortRewards } from '@/data/rewards';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,6 @@ export const StageView = ({ stage }: StageViewProps) => {
     startCook,
   } = useKitchen();
   const [monsterId, setMonsterId] = useState<string | null>(null);
-  const [recipeId, setRecipeId] = useState<string | null>(null);
   const [rewardId, setRewardId] = useState<RewardId | null>(null);
 
   const isPrepare = stage === 'prepare';
@@ -58,19 +57,16 @@ export const StageView = ({ stage }: StageViewProps) => {
   const monster = monsterId ? findMonster(monsterId) : undefined;
   const recipes: Recipe[] = monster ? recipesFor(monster) : [];
 
-  const recipe = recipes.find((item) => item.id === recipeId);
-
   const slotBlocked = isPrepare && !canPrepare;
   const noWorker = isPrepare ? !canPrepare : !canCook;
-  const canStart = Boolean(recipe) && !slotBlocked && !noWorker && isRoundRunning;
+  const blocked = slotBlocked || noWorker || !isRoundRunning;
 
   const back = () => {
     setMonsterId(null);
-    setRecipeId(null);
   };
 
-  const handleStart = () => {
-    if (!monster || !recipe) return;
+  const handlePick = (recipe: Recipe) => {
+    if (!monster) return;
     if (isPrepare) startPrepare(monster.id, recipe.id);
     else startCook(monster.id, recipe.id);
     back();
@@ -112,9 +108,9 @@ export const StageView = ({ stage }: StageViewProps) => {
           <RecipeList
             recipes={recipes}
             stage={stage}
-            selectedId={recipeId}
             accent={accent}
-            onSelect={setRecipeId}
+            disabled={blocked}
+            onSelect={handlePick}
             emptyLabel="Aucune recette disponible"
           />
         ) : (
@@ -136,35 +132,16 @@ export const StageView = ({ stage }: StageViewProps) => {
         )}
       </div>
 
-      <div className="shrink-0 space-y-3">
-        {message && (
-          <p
-            className={cn(
-              'text-center text-sm',
-              isRoundRunning ? 'text-amber-700' : 'text-gray-500',
-            )}
-          >
-            {message}
-          </p>
-        )}
-        <button
-          type="button"
-          disabled={!canStart}
-          onClick={handleStart}
+      {message && (
+        <p
           className={cn(
-            'min-h-14 w-full rounded-xl text-lg font-bold text-white transition',
-            canStart
-              ? isPrepare
-                ? 'bg-amber-500 active:bg-amber-600'
-                : 'bg-rose-500 active:bg-rose-600'
-              : 'cursor-not-allowed bg-gray-300',
+            'shrink-0 text-center text-sm',
+            isRoundRunning ? 'text-amber-700' : 'text-gray-500',
           )}
         >
-          {recipe
-            ? `${isPrepare ? 'Préparer' : 'Cuisiner'} — ${recipe.name} (${recipeSeconds(recipe, stage)} s)`
-            : `${isPrepare ? 'Préparer' : 'Cuisiner'}`}
-        </button>
-      </div>
+          {message}
+        </p>
+      )}
     </div>
   );
 };

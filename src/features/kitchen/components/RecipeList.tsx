@@ -6,17 +6,17 @@ import type { Recipe } from '@/models/monster';
 interface RecipeListProps {
   recipes: Recipe[];
   stage: Stage;
-  selectedId: string | null;
   accent: Accent;
-  onSelect: (recipeId: string) => void;
+  disabled?: boolean;
+  onSelect: (recipe: Recipe) => void;
   emptyLabel: string;
 }
 
 export const RecipeList = ({
   recipes,
   stage,
-  selectedId,
   accent,
+  disabled = false,
   onSelect,
   emptyLabel,
 }: RecipeListProps) => {
@@ -36,9 +36,10 @@ export const RecipeList = ({
           label={recipe.name}
           hint={`${recipeSeconds(recipe, stage)} s`}
           rewards={[recipe.reward]}
-          selected={recipe.id === selectedId}
+          selected={false}
+          disabled={disabled}
           accent={accent}
-          onSelect={() => onSelect(recipe.id)}
+          onSelect={() => onSelect(recipe)}
         />
       ))}
     </CardGrid>
