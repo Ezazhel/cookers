@@ -7,6 +7,10 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  FRIGO_SHELVES_DEFAULT,
+  FRIGO_SHELVES_MIN,
+  FRIGO_SLOTS_DEFAULT,
+  FRIGO_SLOTS_MIN,
   HUNT_RETURN_SECONDS_DEFAULT,
   HUNT_SECONDS_MIN,
   HUNT_TRAVEL_SECONDS_DEFAULT,
@@ -17,7 +21,7 @@ import {
   SECONDS_PER_MINUTE,
 } from '@/config';
 import { findMonster, findRecipe, recipeSeconds } from '@/data/monsters';
-import type { ActiveTimer, Carcass, Stage } from '@/models/food';
+import type { ActiveTimer, Carcass, FrigoEntry, Stage } from '@/models/food';
 import type { Recipe } from '@/models/monster';
 import type { Hunt, Player } from '@/models/player';
 import { emptyRoundStats, type RoundStats } from '@/models/stats';
@@ -39,6 +43,8 @@ interface GameSettings {
   prepareSlots: number;
   huntTravelSeconds: number;
   huntReturnSeconds: number;
+  frigoSlots: number;
+  frigoShelves: number;
 }
 
 interface GameState {
@@ -56,6 +62,8 @@ interface GameState {
   /** What happened this round, for the end-of-day recap. Cleared when the
    *  next round starts. */
   stats: RoundStats;
+  /** What's preserved in the shared Frigo across the day boundary. */
+  frigo: FrigoEntry[];
 }
 
 type GameAction =
@@ -79,7 +87,14 @@ type GameAction =
   | { type: 'SET_ROUND_DURATION'; minutes: number }
   | { type: 'SET_PREPARE_SLOTS'; slots: number }
   | { type: 'SET_HUNT_TRAVEL_SECONDS'; seconds: number }
-  | { type: 'SET_HUNT_RETURN_SECONDS'; seconds: number };
+  | { type: 'SET_HUNT_RETURN_SECONDS'; seconds: number }
+  | {
+      type: 'STORE_IN_FRIGO';
+      carcassMonsterIds: string[];
+      preparedItems: { monsterId: string; recipeId: string }[];
+    }
+  | { type: 'SET_FRIGO_SLOTS'; slots: number }
+  | { type: 'SET_FRIGO_SHELVES'; shelves: number };
 
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
@@ -134,6 +149,69 @@ const withRecipeState = (
     return spent ? [] : [{ ...carcass, recipes }];
   });
 
+/** Whether a Frigo entry is still doing its job: a `'carcass'` entry is
+ *  valid while its carcass still has at least one un-prepared recipe, a
+ *  `'prepared'` entry is valid while its specific recipe is still sitting
+ *  in `'prepare'`. Anything else means the entry is stale. */
+const frigoEntryStillValid = (state: GameState, entry: FrigoEntry): boolean => {
+  const carcass = findCarcass(state, entry.monsterId);
+  if (!carcass) return false;
+  if (entry.kind === 'carcass') {
+    return Object.values(carcass.recipes).some((value) => value === 'nothing');
+  }
+  return (
+    entry.recipeId !== undefined && carcass.recipes[entry.recipeId] === 'prepare'
+  );
+};
+
+/** Drops stale Frigo entries against `state.carcasses` as it stands right
+ *  now. Call this right after any `withRecipeState` call that can move a
+ *  protected recipe out of the state its Frigo entry expects — this is the
+ *  whole mechanism behind a stored item "disappearing naturally" once it is
+ *  actually used through the normal prepare/cook/serve flow. */
+const pruneFrigo = (state: GameState): FrigoEntry[] =>
+  state.frigo.filter((entry) => frigoEntryStillValid(state, entry));
+
+/** Carcasses with at least one still-raw recipe not already covered by an
+ *  existing `'carcass'` Frigo entry — what the end-of-day picker offers. */
+const storableCarcasses = (state: GameState): Carcass[] =>
+  state.carcasses.filter(
+    (carcass) =>
+      Object.values(carcass.recipes).some((value) => value === 'nothing') &&
+      !state.frigo.some(
+        (entry) => entry.kind === 'carcass' && entry.monsterId === carcass.monsterId,
+      ),
+  );
+
+/** Individually-prepared (recipe state `'prepare'`) items not already
+ *  covered by an existing `'prepared'` Frigo entry for that exact
+ *  monster+recipe — what the end-of-day picker offers. */
+const storablePreparedItems = (
+  state: GameState,
+): { monsterId: string; recipeId: string }[] =>
+  state.carcasses.flatMap((carcass) =>
+    Object.entries(carcass.recipes)
+      .filter(
+        ([recipeId, value]) =>
+          value === 'prepare' &&
+          !state.frigo.some(
+            (entry) =>
+              entry.kind === 'prepared' &&
+              entry.monsterId === carcass.monsterId &&
+              entry.recipeId === recipeId,
+          ),
+      )
+      .map(([recipeId]) => ({ monsterId: carcass.monsterId, recipeId })),
+  );
+
+/** Slot cost of a set of Frigo entries: one whole-carcass entry uses a full
+ *  slot, two prepared entries share one slot. */
+const frigoSlotsUsed = (entries: FrigoEntry[]): number => {
+  const carcassCount = entries.filter((entry) => entry.kind === 'carcass').length;
+  const preparedCount = entries.filter((entry) => entry.kind === 'prepared').length;
+  return carcassCount + Math.ceil(preparedCount / 2);
+};
+
 /** Every player currently tied up by a timer or a hunt. A hunt holds its
  *  worker through every status, including `arrived`, until the loot is
  *  registered. */
@@ -157,11 +235,14 @@ const initialState: GameState = {
   round: { status: 'idle', endTime: null },
   day: 1,
   stats: emptyRoundStats(),
+  frigo: [],
   settings: {
     roundMinutes: ROUND_DEFAULT_MINUTES,
     prepareSlots: PREPARE_SLOTS_DEFAULT,
     huntTravelSeconds: HUNT_TRAVEL_SECONDS_DEFAULT,
     huntReturnSeconds: HUNT_RETURN_SECONDS_DEFAULT,
+    frigoSlots: FRIGO_SLOTS_DEFAULT,
+    frigoShelves: FRIGO_SHELVES_DEFAULT,
   },
 };
 
@@ -250,36 +331,28 @@ const reducer = (state: GameState, action: GameAction): GameState => {
     case 'FINISH_PREPARE': {
       const timer = state.activeTimers.find((t) => t.id === action.id);
       if (!timer) return state;
-      const recipe = findRecipe(timer.monsterId, timer.recipeId);
-      // cookSeconds 0 means no cook step: skip straight to served instead of
-      // surfacing the recipe in Cuisiner.
-      const next = recipe?.cookSeconds === 0 ? 'cook' : 'prepare';
-      const prepared = {
-        monsterId: timer.monsterId,
-        recipeId: timer.recipeId,
-        seconds: timer.duration,
+      // Always lands in `prepare`, no-cook recipes included: the dish must
+      // pass through Cuisiner so the player can choose to serve it right
+      // away (an instant, 0-duration cook timer) or leave it prepared,
+      // eligible for Frigo storage instead.
+      const nextState: GameState = {
+        ...state,
+        carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, 'prepare'),
       };
       return {
-        ...state,
-        carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, next),
+        ...nextState,
+        frigo: pruneFrigo(nextState),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
         stats: {
           ...state.stats,
-          prepared: [...state.stats.prepared, prepared],
-          // No cook step: this dish is served the instant it's prepared, so
-          // it must also count in the "cuisiné" recap or it would never
-          // appear there.
-          cooked:
-            next === 'cook'
-              ? [
-                  ...state.stats.cooked,
-                  {
-                    monsterId: timer.monsterId,
-                    recipeId: timer.recipeId,
-                    burnt: false,
-                  },
-                ]
-              : state.stats.cooked,
+          prepared: [
+            ...state.stats.prepared,
+            {
+              monsterId: timer.monsterId,
+              recipeId: timer.recipeId,
+              seconds: timer.duration,
+            },
+          ],
         },
       };
     }
@@ -287,14 +360,13 @@ const reducer = (state: GameState, action: GameAction): GameState => {
     case 'SERVE_DISH': {
       const timer = state.activeTimers.find((t) => t.id === action.id);
       if (!timer) return state;
-      return {
+      const nextState: GameState = {
         ...state,
-        carcasses: withRecipeState(
-          state,
-          timer.monsterId,
-          timer.recipeId,
-          'cook',
-        ),
+        carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, 'cook'),
+      };
+      return {
+        ...nextState,
+        frigo: pruneFrigo(nextState),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
         stats: {
           ...state.stats,
@@ -311,14 +383,13 @@ const reducer = (state: GameState, action: GameAction): GameState => {
       // transition as SERVE_DISH, just logged as burnt instead of served.
       const timer = state.activeTimers.find((t) => t.id === action.id);
       if (!timer) return state;
-      return {
+      const nextState: GameState = {
         ...state,
-        carcasses: withRecipeState(
-          state,
-          timer.monsterId,
-          timer.recipeId,
-          'cook',
-        ),
+        carcasses: withRecipeState(state, timer.monsterId, timer.recipeId, 'cook'),
+      };
+      return {
+        ...nextState,
+        frigo: pruneFrigo(nextState),
         activeTimers: state.activeTimers.filter((t) => t.id !== action.id),
         stats: {
           ...state.stats,
@@ -450,11 +521,52 @@ const reducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case 'START_ROUND': {
-      // A new day: clear the board but keep the players and what they hunted.
-      // Only bump the day counter when this follows an ended day, not the
-      // very first "Démarrer" from idle.
+      // A new day: clear the board but keep the players and what they
+      // hunted. Only bump the day counter (and age the Frigo) when this
+      // follows an ended day, not the very first "Démarrer" from idle.
+      const isNewDay = state.round.status === 'ended';
+      let carcasses = state.carcasses;
+      let frigo = state.frigo;
+
+      if (isNewDay) {
+        // Every Frigo entry ages one shelf. Anything that would fall off
+        // the bottom shelf spoils: it's dropped and its protected recipe(s)
+        // are marked lost via the normal terminal transition, which also
+        // frees the monster to be hunted again if that was its last recipe.
+        const aged = state.frigo.map((entry) => ({ ...entry, shelf: entry.shelf + 1 }));
+        const kept: FrigoEntry[] = [];
+        let working: GameState = { ...state, carcasses };
+
+        for (const entry of aged) {
+          if (entry.shelf <= state.settings.frigoShelves) {
+            kept.push(entry);
+            continue;
+          }
+          const carcass = findCarcass(working, entry.monsterId);
+          const lostRecipeIds =
+            entry.kind === 'carcass'
+              ? Object.entries(carcass?.recipes ?? {})
+                  .filter(([, value]) => value === 'nothing')
+                  .map(([recipeId]) => recipeId)
+              : entry.recipeId
+                ? [entry.recipeId]
+                : [];
+          for (const recipeId of lostRecipeIds) {
+            working = {
+              ...working,
+              carcasses: withRecipeState(working, entry.monsterId, recipeId, 'cook'),
+            };
+          }
+        }
+
+        carcasses = working.carcasses;
+        frigo = kept;
+      }
+
       return {
         ...state,
+        carcasses,
+        frigo,
         activeTimers: [],
         hunts: [],
         stats: emptyRoundStats(),
@@ -463,7 +575,7 @@ const reducer = (state: GameState, action: GameAction): GameState => {
           endTime:
             Date.now() + state.settings.roundMinutes * SECONDS_PER_MINUTE * 1000,
         },
-        day: state.round.status === 'ended' ? state.day + 1 : state.day,
+        day: isNewDay ? state.day + 1 : state.day,
       };
     }
 
@@ -518,6 +630,114 @@ const reducer = (state: GameState, action: GameAction): GameState => {
       };
     }
 
+    case 'STORE_IN_FRIGO': {
+      // Only meaningful between rounds, when the picker is actually shown.
+      if (state.round.status !== 'ended') return state;
+
+      const okCarcasses = storableCarcasses(state).map((c) => c.monsterId);
+      const okPrepared = storablePreparedItems(state);
+      const pickedCarcasses = action.carcassMonsterIds.filter((id) =>
+        okCarcasses.includes(id),
+      );
+      const pickedPrepared = action.preparedItems.filter((item) =>
+        okPrepared.some(
+          (o) => o.monsterId === item.monsterId && o.recipeId === item.recipeId,
+        ),
+      );
+
+      // Defensive re-clamp to remaining capacity: the UI already disables
+      // over-capacity picks, this just guarantees the invariant regardless.
+      let remaining = state.settings.frigoSlots - frigoSlotsUsed(state.frigo);
+      const acceptedCarcasses: string[] = [];
+      for (const id of pickedCarcasses) {
+        if (remaining <= 0) break;
+        acceptedCarcasses.push(id);
+        remaining -= 1;
+      }
+      const acceptedPrepared: { monsterId: string; recipeId: string }[] = [];
+      let halfOpenSlot = false;
+      for (const item of pickedPrepared) {
+        if (halfOpenSlot) {
+          acceptedPrepared.push(item);
+          halfOpenSlot = false;
+          continue;
+        }
+        if (remaining <= 0) break;
+        acceptedPrepared.push(item);
+        remaining -= 1;
+        halfOpenSlot = true;
+      }
+
+      const newEntries: FrigoEntry[] = [
+        ...acceptedCarcasses.map<FrigoEntry>((monsterId) => ({
+          id: nextId('frigo'),
+          kind: 'carcass',
+          monsterId,
+          shelf: 1,
+        })),
+        ...acceptedPrepared.map<FrigoEntry>(({ monsterId, recipeId }) => ({
+          id: nextId('frigo'),
+          kind: 'prepared',
+          monsterId,
+          recipeId,
+          shelf: 1,
+        })),
+      ];
+
+      // Finalize the day: anything still `nothing`/`prepare` that isn't
+      // freshly stored (or already protected by an existing entry) is lost
+      // — the Frigo is the only way to carry stock across the day boundary.
+      let working: GameState = state;
+      for (const carcass of state.carcasses) {
+        for (const [recipeId, value] of Object.entries(carcass.recipes)) {
+          if (value === 'cook') continue;
+          const protectedNow =
+            (value === 'nothing' &&
+              (acceptedCarcasses.includes(carcass.monsterId) ||
+                state.frigo.some(
+                  (e) => e.kind === 'carcass' && e.monsterId === carcass.monsterId,
+                ))) ||
+            (value === 'prepare' &&
+              (acceptedPrepared.some(
+                (p) => p.monsterId === carcass.monsterId && p.recipeId === recipeId,
+              ) ||
+                state.frigo.some(
+                  (e) =>
+                    e.kind === 'prepared' &&
+                    e.monsterId === carcass.monsterId &&
+                    e.recipeId === recipeId,
+                )));
+          if (protectedNow) continue;
+          working = {
+            ...working,
+            carcasses: withRecipeState(working, carcass.monsterId, recipeId, 'cook'),
+          };
+        }
+      }
+
+      return { ...working, frigo: [...state.frigo, ...newEntries] };
+    }
+
+    case 'SET_FRIGO_SLOTS': {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          frigoSlots: Math.max(FRIGO_SLOTS_MIN, action.slots),
+        },
+      };
+    }
+
+    case 'SET_FRIGO_SHELVES': {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          frigoShelves: Math.max(FRIGO_SHELVES_MIN, action.shelves),
+        },
+      };
+    }
+
     default:
       return state;
   }
@@ -533,6 +753,12 @@ interface KitchenContextValue {
   day: number;
   settings: GameSettings;
   stats: RoundStats;
+  frigo: FrigoEntry[];
+  /** Total Frigo slots currently occupied by `frigo`. */
+  frigoSlotsUsed: number;
+  /** Carcasses/items the end-of-day picker can offer right now. */
+  storableCarcasses: Carcass[];
+  storablePreparedItems: { monsterId: string; recipeId: string }[];
   /** Whether the round is currently running (the board is unlocked). */
   isRoundRunning: boolean;
   /** Players not tied up by a timer or a hunt. */
@@ -578,6 +804,14 @@ interface KitchenContextValue {
   setPrepareSlots: (slots: number) => void;
   setHuntTravelSeconds: (seconds: number) => void;
   setHuntReturnSeconds: (seconds: number) => void;
+  /** Stores the chosen carcasses/prepared items in the Frigo and finalizes
+   *  the day: everything else still raw or prepared is lost. */
+  storeInFrigo: (
+    carcassMonsterIds: string[],
+    preparedItems: { monsterId: string; recipeId: string }[],
+  ) => void;
+  setFrigoSlots: (slots: number) => void;
+  setFrigoShelves: (shelves: number) => void;
 }
 
 const KitchenContext = createContext<KitchenContextValue | null>(null);
@@ -663,6 +897,24 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'SET_HUNT_RETURN_SECONDS', seconds });
   }, []);
 
+  const storeInFrigo = useCallback(
+    (
+      carcassMonsterIds: string[],
+      preparedItems: { monsterId: string; recipeId: string }[],
+    ) => {
+      dispatch({ type: 'STORE_IN_FRIGO', carcassMonsterIds, preparedItems });
+    },
+    [],
+  );
+
+  const setFrigoSlots = useCallback((slots: number) => {
+    dispatch({ type: 'SET_FRIGO_SLOTS', slots });
+  }, []);
+
+  const setFrigoShelves = useCallback((shelves: number) => {
+    dispatch({ type: 'SET_FRIGO_SHELVES', shelves });
+  }, []);
+
   const value = useMemo<KitchenContextValue>(() => {
     const available = idleWorkers(state);
     const hasWorker = available.length > 0;
@@ -676,6 +928,10 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       day: state.day,
       settings: state.settings,
       stats: state.stats,
+      frigo: state.frigo,
+      frigoSlotsUsed: frigoSlotsUsed(state.frigo),
+      storableCarcasses: storableCarcasses(state),
+      storablePreparedItems: storablePreparedItems(state),
       isRoundRunning: state.round.status === 'running',
       availableWorkers: available,
       canPrepare:
@@ -710,6 +966,9 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
       setPrepareSlots,
       setHuntTravelSeconds,
       setHuntReturnSeconds,
+      storeInFrigo,
+      setFrigoSlots,
+      setFrigoShelves,
     };
   }, [
     state,
@@ -735,6 +994,9 @@ export const KitchenProvider = ({ children }: { children: ReactNode }) => {
     setPrepareSlots,
     setHuntTravelSeconds,
     setHuntReturnSeconds,
+    storeInFrigo,
+    setFrigoSlots,
+    setFrigoShelves,
   ]);
 
   return (

@@ -29,3 +29,11 @@ export const COOK_BURN_SECONDS = 10;
 export const PLAYERS_MIN = 1;
 export const PLAYERS_MAX = 6;
 export const PLAYERS_DEFAULT = 2;
+
+/** Default number of Frigo emplacements (editable in settings). */
+export const FRIGO_SLOTS_DEFAULT = 2;
+export const FRIGO_SLOTS_MIN = 1;
+
+/** Default number of Frigo étages/shelves (editable in settings). */
+export const FRIGO_SHELVES_DEFAULT = 3;
+export const FRIGO_SHELVES_MIN = 1;

@@ -21,6 +21,9 @@ export const CookTimer = ({ timer, onRequestCancel }: CookTimerProps) => {
   const { markDone, serveDish, burnDish, isRoundRunning } = useKitchen();
   const remaining = useCountdown(timer, markDone);
   const done = timer.done || remaining <= 0;
+  // A no-cook recipe (0-second cook timer) never sat on the fire, so it
+  // can't burn: it waits in Cuisiner indefinitely until served.
+  const noCook = timer.duration === 0;
 
   // remainingSeconds is derived from `endTime - Date.now()` on every tick, so
   // this reads exactly COOK_BURN_SECONDS the instant the main countdown
@@ -29,7 +32,7 @@ export const CookTimer = ({ timer, onRequestCancel }: CookTimerProps) => {
     {
       id: `${timer.id}-burn`,
       endTime: timer.endTime + COOK_BURN_SECONDS * 1000,
-      done: !isRoundRunning,
+      done: !isRoundRunning || noCook,
     },
     () => burnDish(timer.id),
   );
@@ -77,15 +80,19 @@ export const CookTimer = ({ timer, onRequestCancel }: CookTimerProps) => {
           >
             Servir
           </button>
-          <p className="mt-1 text-center text-[0.625rem] font-semibold text-red-600">
-            Cramé dans {formatMMSS(burnRemaining)}
-          </p>
-          <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-red-500"
-              style={{ width: `${Math.min(100, burnProgress * 100)}%` }}
-            />
-          </div>
+          {!noCook && (
+            <>
+              <p className="mt-1 text-center text-[0.625rem] font-semibold text-red-600">
+                Cramé dans {formatMMSS(burnRemaining)}
+              </p>
+              <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${Math.min(100, burnProgress * 100)}%` }}
+                />
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>

@@ -29,3 +29,27 @@ export interface ActiveTimer {
   /** Set once the countdown hits zero and awaits the user's action. */
   done: boolean;
 }
+
+/** What a Frigo entry protects: a whole raw carcass, or one individually
+ *  prepared-but-uncooked item. The two are always separate, decoupled
+ *  tokens even for the same monster. */
+export type FrigoEntryKind = 'carcass' | 'prepared';
+
+/**
+ * One thing sitting in the shared Frigo. Purely a tracking/aging overlay —
+ * it never duplicates the underlying `Carcass`/`RecipeState` data, it just
+ * marks a (monsterId[, recipeId]) pair as "protected" and remembers which
+ * shelf it's on.
+ */
+export interface FrigoEntry {
+  id: string;
+  kind: FrigoEntryKind;
+  monsterId: string;
+  /** Present only for `kind: 'prepared'` — identifies which recipe. A
+   *  `'carcass'` entry has no `recipeId`: it protects every recipe of that
+   *  monster currently in `'nothing'` state, as a set. */
+  recipeId?: string;
+  /** 1 = top/freshest shelf. Bumped by 1 every `START_ROUND` day transition;
+   *  an entry whose shelf would exceed `frigoShelves` spoils and is removed. */
+  shelf: number;
+}
