@@ -1,15 +1,22 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Modal } from '@/components/Modal';
 import { StepperRow } from '@/components/StepperRow';
-import { PREPARE_SLOTS_MIN, ROUND_MIN_MINUTES } from '@/config';
+import {
+  FRIGO_SHELVES_MIN,
+  FRIGO_SLOTS_MIN,
+  PREPARE_SLOTS_MIN,
+  ROUND_MIN_MINUTES,
+} from '@/config';
 import { findMonster, findRecipe } from '@/data/monsters';
 import { useKitchen } from '@/features/kitchen/context/KitchenContext';
 import { formatMMSS } from '@/lib/utils';
+import { FrigoModal } from './FrigoModal';
 
 /** Shown when the main timer runs out. Recaps what happened this round, then
- *  lets the players tweak next-day settings (round length, cutting boards) —
- *  the only moment those are editable besides the very first pre-game setup
- *  — before either starting the next day or ending the game outright. */
+ *  lets the players tweak next-day settings (round length, cutting boards,
+ *  Frigo capacity) — the only moment those are editable besides the very
+ *  first pre-game setup — before either opening the Frigo storage step or
+ *  ending the game outright. */
 export const EndOfDayModal = () => {
   const {
     round,
@@ -18,13 +25,26 @@ export const EndOfDayModal = () => {
     stats,
     setRoundDuration,
     setPrepareSlots,
+    setFrigoSlots,
+    setFrigoShelves,
     startRound,
     resetRound,
   } = useKitchen();
 
+  const [showFrigo, setShowFrigo] = useState(false);
+
+  // Resets the flow (and remounts FrigoModal fresh, see its `key` below) so
+  // the next day-end starts back at the recap instead of skipping straight
+  // to the Frigo step.
+  const startNextDay = () => {
+    startRound();
+    setShowFrigo(false);
+  };
+
   return (
+    <>
     <Modal
-      open={round.status === 'ended'}
+      open={round.status === 'ended' && !showFrigo}
       title={`Fin de la journée ${day}`}
       dismissible={false}
     >
@@ -120,11 +140,23 @@ export const EndOfDayModal = () => {
           min={PREPARE_SLOTS_MIN}
           onChange={setPrepareSlots}
         />
+        <StepperRow
+          label="Emplacements du frigo"
+          value={settings.frigoSlots}
+          min={FRIGO_SLOTS_MIN}
+          onChange={setFrigoSlots}
+        />
+        <StepperRow
+          label="Étages du frigo"
+          value={settings.frigoShelves}
+          min={FRIGO_SHELVES_MIN}
+          onChange={setFrigoShelves}
+        />
       </div>
 
       <button
         type="button"
-        onClick={startRound}
+        onClick={() => setShowFrigo(true)}
         className="mt-6 min-h-12 w-full rounded-xl bg-emerald-600 text-base font-bold text-white active:bg-emerald-700"
       >
         {`Jour ${day + 1}`}
@@ -137,6 +169,13 @@ export const EndOfDayModal = () => {
         Terminer la partie
       </button>
     </Modal>
+
+    <FrigoModal
+      key={showFrigo ? 'open' : 'closed'}
+      open={round.status === 'ended' && showFrigo}
+      onStart={startNextDay}
+    />
+    </>
   );
 };
 

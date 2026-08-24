@@ -4,18 +4,20 @@ import { cn } from '@/lib/utils';
 import type { RewardId } from '@/models/monster';
 
 /** Accent colour of a card grid: matches the tab it belongs to. */
-export type Accent = 'prepare' | 'cook' | 'hunt';
+export type Accent = 'prepare' | 'cook' | 'hunt' | 'frigo';
 
 const SELECTED: Record<Accent, string> = {
   prepare: 'border-amber-500 bg-amber-50 text-amber-900',
   cook: 'border-rose-500 bg-rose-50 text-rose-900',
   hunt: 'border-sky-500 bg-sky-50 text-sky-900',
+  frigo: 'border-teal-500 bg-teal-50 text-teal-900',
 };
 
 const BADGE: Record<Accent, string> = {
   prepare: 'bg-amber-500',
   cook: 'bg-rose-500',
   hunt: 'bg-sky-500',
+  frigo: 'bg-teal-500',
 };
 
 /** Compact square-card grid, so a whole monster or recipe set fits on screen. */

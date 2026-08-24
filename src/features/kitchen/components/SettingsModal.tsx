@@ -1,6 +1,8 @@
 import { Modal } from '@/components/Modal';
 import { StepperRow } from '@/components/StepperRow';
 import {
+  FRIGO_SHELVES_MIN,
+  FRIGO_SLOTS_MIN,
   HUNT_SECONDS_MIN,
   PREPARE_SLOTS_MIN,
   ROUND_MIN_MINUTES,
@@ -19,6 +21,8 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
     setPrepareSlots,
     setHuntTravelSeconds,
     setHuntReturnSeconds,
+    setFrigoSlots,
+    setFrigoShelves,
   } = useKitchen();
 
   return (
@@ -47,6 +51,18 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
           value={settings.huntReturnSeconds}
           min={HUNT_SECONDS_MIN}
           onChange={setHuntReturnSeconds}
+        />
+        <StepperRow
+          label="Emplacements du frigo"
+          value={settings.frigoSlots}
+          min={FRIGO_SLOTS_MIN}
+          onChange={setFrigoSlots}
+        />
+        <StepperRow
+          label="Étages du frigo"
+          value={settings.frigoShelves}
+          min={FRIGO_SHELVES_MIN}
+          onChange={setFrigoShelves}
         />
       </div>
 
