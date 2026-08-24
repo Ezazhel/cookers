@@ -1,25 +1,13 @@
 import type { Monster, Recipe } from '@/models/monster';
 
-/**
- * Real board-game data, transcribed from the official monster/recipe
- * spreadsheet. Rewards are typed, so a wrong one is a build error rather than
- * a filter that silently matches nothing.
- */
 export const MONSTERS: readonly Monster[] = [
   {
     id: 'gobelin',
     name: 'Gobelin',
     recipes: [
       {
-        id: 'gobelin-mains-paquets',
-        name: 'Mains paquets',
-        reward: 'viande-rouge-mijotee',
-        prepareSeconds: 10,
-        cookSeconds: 20,
-      },
-      {
         id: 'gobelin-cuisse',
-        name: 'Cuisse à gobé',
+        name: "Cuisse à gobé'lin",
         reward: 'viande-rouge-tendre',
         prepareSeconds: 15,
         cookSeconds: 15,
@@ -39,10 +27,17 @@ export const MONSTERS: readonly Monster[] = [
     recipes: [
       {
         id: 'licorne-steak',
-        name: 'Steak à la licorne',
+        name: 'Steak à licorne',
         reward: 'viande-rouge-tendre',
         prepareSeconds: 20,
         cookSeconds: 10,
+      },
+      {
+        id: 'licorne-bourguicorne',
+        name: 'Bourguicorne',
+        reward: 'viande-rouge-mijotee',
+        prepareSeconds: 15,
+        cookSeconds: 20,
       },
       {
         id: 'licorne-corne',
@@ -51,13 +46,6 @@ export const MONSTERS: readonly Monster[] = [
         prepareSeconds: 25,
         // No cook step: served as soon as it's prepared.
         cookSeconds: 0,
-      },
-      {
-        id: 'licorne-bourguicorne',
-        name: 'Bourguicorne',
-        reward: 'viande-rouge-mijotee',
-        prepareSeconds: 15,
-        cookSeconds: 20,
       },
     ],
   },
@@ -95,15 +83,15 @@ export const MONSTERS: readonly Monster[] = [
       {
         id: 'kappa-assiette-coupole',
         name: 'Assiette coupole de Kappa',
-        reward: 'topping',
+        reward: 'poissons',
         prepareSeconds: 25,
         // No cook step: served as soon as it's prepared.
         cookSeconds: 0,
       },
       {
         id: 'kappa-cap-ou-pas',
-        name: 'Cap ou pas ? (épicé)',
-        reward: 'poissons',
+        name: 'Cap ou pas ?',
+        reward: 'topping',
         prepareSeconds: 10,
         cookSeconds: 15,
       },
@@ -121,13 +109,6 @@ export const MONSTERS: readonly Monster[] = [
     name: 'Salamandre',
     recipes: [
       {
-        id: 'salamandre-sauce-viande',
-        name: 'Sauce de viande',
-        reward: 'sauce-corsee',
-        prepareSeconds: 15,
-        cookSeconds: 20,
-      },
-      {
         id: 'salamandre-brochette-flamme',
         name: 'Brochette à la flamme',
         reward: 'viande-blanche-tendre',
@@ -135,38 +116,31 @@ export const MONSTERS: readonly Monster[] = [
         cookSeconds: 10,
       },
       {
-        id: 'salamandre-pattes-lezard',
-        name: 'Pattes de lézard braisé',
-        reward: 'viande-blanche-mijotee',
-        prepareSeconds: 5,
-        cookSeconds: 25,
+        id: 'salamandre-sauce-viande',
+        name: 'Sauce de viande',
+        reward: 'sauce-corsee',
+        prepareSeconds: 15,
+        cookSeconds: 20,
       },
     ],
   },
   {
     id: 'liane-etrangleuse',
-    name: 'Liane étrangleuse',
+    name: 'Liane étranglueuse',
     recipes: [
       {
         id: 'liane-etrangleuse-spaghetti',
         name: 'Liane Spaghetti',
-        reward: 'accompagnement',
+        reward: 'legumes',
         prepareSeconds: 10,
         cookSeconds: 5,
       },
       {
         id: 'liane-etrangleuse-asperges',
         name: 'Asperges ligotées',
-        reward: 'legumes',
+        reward: 'accompagnement',
         prepareSeconds: 5,
         cookSeconds: 5,
-      },
-      {
-        id: 'liane-etrangleuse-bouillon',
-        name: 'Bouillon herbacé',
-        reward: 'sauce-claire',
-        prepareSeconds: 5,
-        cookSeconds: 25,
       },
     ],
   },
@@ -175,13 +149,6 @@ export const MONSTERS: readonly Monster[] = [
     name: 'Orc',
     recipes: [
       {
-        id: 'orc-orchetta',
-        name: 'Orchetta',
-        reward: 'viande-blanche-mijotee',
-        prepareSeconds: 15,
-        cookSeconds: 20,
-      },
-      {
         id: 'orc-mignon',
         name: "L'orc mignon",
         reward: 'viande-blanche-tendre',
@@ -189,11 +156,185 @@ export const MONSTERS: readonly Monster[] = [
         cookSeconds: 10,
       },
       {
+        id: 'orc-orchetta',
+        name: 'Orchetta',
+        reward: 'viande-blanche-mijotee',
+        prepareSeconds: 15,
+        cookSeconds: 20,
+      },
+      {
         id: 'orc-couenne',
         name: 'Couenne croustillante',
         reward: 'topping',
         prepareSeconds: 15,
         cookSeconds: 10,
+      },
+    ],
+  },
+  {
+    id: 'slime',
+    name: 'Slime',
+    recipes: [
+      {
+        id: 'slime-coulis-gluant',
+        name: 'Coulis gluant',
+        reward: 'sauce-claire',
+        prepareSeconds: 15,
+        cookSeconds: 10,
+      },
+      {
+        id: 'slime-gelee-rigolote',
+        name: 'Gelée rigolote',
+        reward: 'accompagnement',
+        prepareSeconds: 20,
+        cookSeconds: 10,
+      },
+    ],
+  },
+  {
+    id: 'mandragore',
+    name: 'Mandragore',
+    recipes: [
+      {
+        id: 'mandragore-feuille-silence',
+        name: 'Feuille du silence',
+        reward: 'legumes',
+        prepareSeconds: 10,
+        cookSeconds: 15,
+      },
+      {
+        id: 'mandragore-bouillon-racines',
+        name: 'Bouillon de racines',
+        reward: 'sauce-claire',
+        prepareSeconds: 10,
+        cookSeconds: 25,
+      },
+    ],
+  },
+  {
+    id: 'piranha-mutant',
+    name: 'Piranha mutant',
+    recipes: [
+      {
+        id: 'piranha-mutant-roti',
+        name: 'Piranha rôti',
+        reward: 'poissons',
+        prepareSeconds: 10,
+        cookSeconds: 25,
+      },
+      {
+        id: 'piranha-mutant-reduction',
+        name: 'Réduction de piranha',
+        reward: 'sauce-corsee',
+        prepareSeconds: 15,
+        cookSeconds: 25,
+      },
+    ],
+  },
+  {
+    id: 'squelette',
+    name: 'Squelette',
+    recipes: [
+      {
+        id: 'squelette-sauce-os',
+        name: "Sauce à l'os",
+        reward: 'sauce-corsee',
+        prepareSeconds: 10,
+        cookSeconds: 25,
+      },
+      {
+        id: 'squelette-os-moelle',
+        name: 'Os à la moelle',
+        reward: 'accompagnement',
+        prepareSeconds: 10,
+        cookSeconds: 20,
+      },
+    ],
+  },
+  {
+    id: 'lycan',
+    name: 'Lycan',
+    recipes: [
+      {
+        id: 'lycan-tendre-garou',
+        name: 'Tendre garou',
+        reward: 'viande-rouge-tendre',
+        prepareSeconds: 20,
+        cookSeconds: 10,
+      },
+      {
+        id: 'lycan-ragouut-garou',
+        name: 'Ragouût-Garou',
+        reward: 'viande-rouge-mijotee',
+        prepareSeconds: 10,
+        cookSeconds: 30,
+      },
+      {
+        id: 'lycan-sauce-poil',
+        name: 'Sauce au poil',
+        reward: 'sauce-claire',
+        prepareSeconds: 15,
+        cookSeconds: 15,
+      },
+    ],
+  },
+  {
+    id: 'griffon',
+    name: 'Griffon',
+    recipes: [
+      {
+        id: 'griffon-supreme',
+        name: 'Suprême de griffon',
+        reward: 'viande-blanche-tendre',
+        prepareSeconds: 20,
+        cookSeconds: 15,
+      },
+      {
+        id: 'griffon-griffonnade',
+        name: 'Griffonnade mijotée',
+        reward: 'viande-blanche-mijotee',
+        prepareSeconds: 10,
+        cookSeconds: 30,
+      },
+      {
+        id: 'griffon-duvet-soyeux',
+        name: 'Duvet soyeux',
+        reward: 'topping',
+        prepareSeconds: 20,
+        cookSeconds: 5,
+      },
+    ],
+  },
+  {
+    id: 'chimere',
+    name: 'Chimère',
+    recipes: [
+      {
+        id: 'chimere-jambon',
+        name: 'Jambon chimérique',
+        reward: 'viande-blanche-mijotee',
+        prepareSeconds: 15,
+        cookSeconds: 25,
+      },
+      {
+        id: 'chimere-biere',
+        name: 'Chimère à la bière',
+        reward: 'viande-rouge-mijotee',
+        prepareSeconds: 10,
+        cookSeconds: 30,
+      },
+    ],
+  },
+  {
+    id: 'anguille',
+    name: 'Anguille',
+    recipes: [
+      {
+        id: 'anguille-braisee',
+        name: 'Anguille braisée',
+        reward: 'poissons',
+        prepareSeconds: 15,
+        cookSeconds: 20,
       },
     ],
   },
